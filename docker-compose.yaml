@@ -1,0 +1,38 @@
+# Die Galerie in einem Container. ./data ist das Datenverzeichnis der alten Java-Fassung, unverändert
+# übernommen (wedding.db, assets/photos/<Token>/…):
+#
+#   cp -a /opt/docker-services/hochzeit/data ./data
+#   cp .env.example .env    # denselben Token und dasselbe Passwort wie bisher eintragen
+#   docker compose up -d --build
+#
+# Danach erreichbar unter http://localhost:8080/photos/<PHOTOS_TOKEN>. Den Link ohne Passworteingabe zeigt
+#   docker compose exec galerie galerie link https://fotos.example.com
+
+services:
+  galerie:
+    build: .
+    image: hochzeit-galerie:latest
+    container_name: hochzeit-galerie
+    restart: unless-stopped
+    ports:
+      - "${GALERIE_PORT:-8080}:8080"
+    # Logs auf stdout wachsen nicht endlos
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    volumes:
+      # Statt zu kopieren ginge auch direkt das alte Verzeichnis: /opt/docker-services/hochzeit/data:/data
+      # (die alte Anwendung muss dann gestoppt sein). Auf SELinux-Hosts :Z anhängen, also ./data:/data:Z
+      - ./data:/data
+    environment:
+      PHOTOS_TOKEN: ${PHOTOS_TOKEN:?PHOTOS_TOKEN in .env setzen}
+      PHOTOS_PASSWORD: ${PHOTOS_PASSWORD:-}
+      COUPLE_NAME_1: ${COUPLE_NAME_1:-Julia}
+      COUPLE_NAME_2: ${COUPLE_NAME_2:-Danny}
+      GALLERY_SUBTITLE: ${GALLERY_SUBTITLE:-Die schönsten Momente unserer Hochzeit}
+      ZIP_NAME: ${ZIP_NAME:-Hochzeitsfotos.zip}
+      IMAGE_WORKERS: ${IMAGE_WORKERS:-}
+      SECURE_COOKIE: ${SECURE_COOKIE:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-info}

@@ -1,0 +1,25 @@
+@import "tailwindcss";
+@source "../templates/**/*.html";
+@source "../static/js/app.js";
+
+/* Naturpapier mit Fasern und Pünktchen für die Fotoseiten; erzeugt mit scripts/paper-texture.py */
+@utility bg-paper {
+    background-color: #f1eeea;
+    background-image: url("/static/img/paper.jpg");
+    background-repeat: repeat;
+}
+
+@layer base {
+    html {
+        overflow-x: hidden;
+        -webkit-hyphens: auto;
+        hyphens: auto;
+    }
+    a, code, td {
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+    [x-cloak] {
+        display: none !important;
+    }
+}

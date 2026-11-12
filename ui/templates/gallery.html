@@ -1,0 +1,168 @@
+{{define "content"}}
+    <script>
+        window.__photosToken = {{.Token}};
+        window.__photos = {{.Items}};
+    </script>
+
+    <!-- Hero -->
+    <section class="relative py-16 px-6 bg-gradient-to-b from-rose-50 to-white border-b border-stone-200/70">
+        <div class="relative max-w-lg mx-auto text-center">
+            {{template "heading" .}}
+            <p class="text-stone-500 text-sm">{{.Subtitle}}</p>
+        </div>
+    </section>
+
+    {{if .Count}}
+    <!-- Gallery -->
+    <!-- Volle Breite mit schmalem Rand: die Fotos sollen wirken, nicht die Kacheln -->
+    <section class="py-12 px-1.5 sm:px-3">
+        <div x-data="photoGallery" @keydown.window="onKey($event)">
+            <p class="text-sm tracking-[0.3em] uppercase text-stone-400 mb-6 text-center">{{.Count}} {{if eq .Count 1}}Foto{{else}}Fotos{{end}}</p>
+
+            {{if .DownloadEnabled}}
+            <!-- Alle Originale als ZIP; wer hier ist, hat das Passwort schon eingegeben -->
+            <div class="text-center -mt-3 mb-6">
+                <a href="/photos/{{.Token}}/download"
+                   class="inline-flex items-center gap-2 text-sm text-stone-500 hover:text-rose-400 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Alle Fotos herunterladen
+                </a>
+            </div>
+            {{end}}
+
+            <!-- Die Kacheln entstehen im Browser, 60 auf einmal; weitere, sobald das Ende in Sicht kommt.
+                 photoGallery setzt jede in die gerade kürzeste Spalte, damit die Reihenfolge von links nach
+                 rechts läuft. Spaltenzahl und Abstand kommen als CSS-Variablen von hier. -->
+            <div x-ref="tiles"
+                 class="relative [--cols:2] sm:[--cols:3] lg:[--cols:4] xl:[--cols:5] [--gap:6px]
+                        [&>div]:absolute [&>div]:top-0 [&>div]:left-0
+                        [&_img]:transition-opacity [&_img]:duration-500
+                        [&_img:not(.loaded)]:aspect-[4/3] [&_img:not(.loaded)]:opacity-0">
+                <template x-for="(item, i) in items.slice(0, shown)" :key="item.file">
+                    <div x-init="addTile($el)">
+                        <div class="relative group">
+                            <a :href="item.original" target="_blank" @click.prevent="show(i)">
+                                <img :src="item.thumb" :alt="item.by || 'Foto'"
+                                     @load="$el.classList.add('loaded')" @error="$el.classList.add('loaded')"
+                                     class="block w-full cursor-pointer hover:brightness-105"
+                                     loading="lazy" decoding="async">
+                            </a>
+                            <!-- Name nur beim Darüberfahren; in der Großansicht steht er ohnehin -->
+                            <p x-show="item.by" x-text="item.by"
+                               class="pointer-events-none absolute inset-x-0 bottom-0 px-3 pt-8 pb-2 text-xs text-white/90
+                                      bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <!-- Kommt es in Sicht, werden die nächsten Kacheln angehängt -->
+            <div x-ref="more" class="h-px"></div>
+            <!-- Ohne JavaScript: feste Kacheln, seitenweise. Mit JavaScript ist das nur Text - keine
+                 DOM-Knoten, keine geladenen Bilder. -->
+            <noscript>{{template "static" .}}</noscript>
+
+            <!-- Großansicht zum Durchblättern -->
+            <template x-teleport="body">
+                <div x-show="open" x-cloak x-transition.opacity
+                     class="fixed inset-0 z-50 flex flex-col bg-stone-950 text-white select-none"
+                     @touchstart="touchStart($event)" @touchend="touchEnd($event)">
+
+                    <!-- Kopfzeile -->
+                    <div class="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+                        <span class="text-white/60 tabular-nums" x-text="(index + 1) + ' / ' + items.length"></span>
+                        <div class="flex items-center gap-2">
+                            <a :href="current.original" target="_blank" rel="noopener"
+                               class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-white/80 hover:text-white hover:bg-white/10 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                </svg>
+                                Original
+                            </a>
+                            <button type="button" @click="close()" title="Schließen"
+                                    class="w-9 h-9 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bild: erst das (schon geladene) Vorschaubild, darüber das große, sobald es da ist.
+                         Beide füllen dieselbe Fläche mit object-contain und liegen so genau übereinander. -->
+                    <div class="relative flex-1 min-h-0">
+                        <div class="absolute inset-0 mx-2 sm:mx-20">
+                            <img :src="current.thumb" alt=""
+                                 class="absolute inset-0 w-full h-full object-contain">
+                            <template x-if="open">
+                                <img :src="current.large" :alt="current.by || 'Foto'"
+                                     @load="loaded = true"
+                                     class="absolute inset-0 w-full h-full object-contain transition-opacity duration-200"
+                                     :class="loaded ? 'opacity-100' : 'opacity-0'">
+                            </template>
+                        </div>
+
+                        <button type="button" @click="prev()" title="Vorheriges Foto" x-show="items.length > 1"
+                                class="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/30 sm:bg-white/10
+                                       flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 transition-colors cursor-pointer">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </button>
+                        <button type="button" @click="next()" title="Nächstes Foto" x-show="items.length > 1"
+                                class="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/30 sm:bg-white/10
+                                       flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 transition-colors cursor-pointer">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Fußzeile -->
+                    <p class="h-10 px-4 flex items-center justify-center text-sm text-white/60"
+                       x-text="current.by ? 'Foto von ' + current.by : ''"></p>
+                </div>
+            </template>
+        </div>
+    </section>
+    {{else}}
+    <!-- Empty state -->
+    <section class="py-16 px-6">
+        <div class="text-center">
+            <p class="text-stone-400">Noch keine Fotos vorhanden.</p>
+        </div>
+    </section>
+    {{end}}
+{{end}}
+
+{{/*
+  Galerie für Browser ohne JavaScript, eingebunden im <noscript> oben.
+  Quadratische Kacheln in einem festen Raster - die Reihenfolge läuft so ohne Skript von links nach
+  rechts. Jede Kachel öffnet das Original; die Großansicht gibt es nur mit JavaScript.
+  Durchblättert wird über ?seite=.
+*/}}
+{{define "static"}}
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1.5">
+        {{- range .StaticPhotos}}
+        <a href="/photos/{{$.Token}}/original/{{pathEscape .File}}" target="_blank"
+           class="block aspect-square bg-stone-300/30">
+            <img src="/photos/{{$.Token}}/thumb/{{pathEscape .File}}" alt="{{or .By "Foto"}}"
+                 class="w-full h-full object-cover hover:brightness-105"
+                 loading="lazy" decoding="async">
+        </a>
+        {{- end}}
+    </div>
+
+    {{if gt .StaticPages 1}}
+    <nav class="flex items-center justify-center gap-6 py-10 text-sm text-stone-500">
+        {{if gt .StaticPage 1}}<a href="/photos/{{.Token}}?seite={{sub .StaticPage 1}}"
+           class="hover:text-rose-400 transition-colors">&larr; Zurück</a>{{end}}
+        <span>Seite {{.StaticPage}} von {{.StaticPages}}</span>
+        {{if lt .StaticPage .StaticPages}}<a href="/photos/{{.Token}}?seite={{add .StaticPage 1}}"
+           class="hover:text-rose-400 transition-colors">Weiter &rarr;</a>{{end}}
+    </nav>
+    {{end}}
+{{end}}

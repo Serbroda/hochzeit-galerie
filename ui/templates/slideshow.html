@@ -1,0 +1,122 @@
+{{define "slideshow"}}<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" type="image/png" href="{{asset "img/logo.png"}}">
+    <title>Diashow</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000;
+            color: #fff;
+            font-family: ui-serif, Georgia, serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+        .slide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+        .slide.active { opacity: 1; }
+        .slide img {
+            max-width: 90vw;
+            max-height: 85vh;
+            object-fit: contain;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        }
+        .slide .credit {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.875rem;
+            color: rgba(255,255,255,0.5);
+            text-align: center;
+        }
+        .empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: rgba(255,255,255,0.3);
+            font-size: 1.25rem;
+        }
+        .controls {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 100;
+            display: flex;
+            gap: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        body:hover .controls { opacity: 1; }
+        .controls button, .controls a {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .controls button:hover, .controls a:hover {
+            background: rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <a href="/photos/{{.Token}}">Galerie</a>
+    <button onclick="location.reload()">Aktualisieren</button>
+</div>
+
+<div id="slideshow">
+    {{- if not .Items}}
+    <div class="empty">Warten auf Fotos...</div>
+    {{- end}}
+    {{- range $i, $p := .Items}}
+    <div class="slide{{if eq $i 0}} active{{end}}">
+        <img data-src="/photos/{{$.Token}}/large/{{pathEscape $p.File}}" alt="">
+        {{- if $p.By}}
+        <div class="credit">
+            <span>Foto von {{$p.By}}</span>
+        </div>
+        {{- end}}
+    </div>
+    {{- end}}
+</div>
+
+<script>
+    // Geladen wird nur das aktuelle und das nächste Foto - nicht alle Hunderte auf einmal.
+    const slides = document.querySelectorAll('.slide');
+    const load = i => {
+        const img = slides[i % slides.length].querySelector('img');
+        if (!img.src) img.src = img.dataset.src;
+    };
+    if (slides.length > 0) load(0);
+    if (slides.length > 1) {
+        load(1);
+        let current = 0;
+        setInterval(() => {
+            slides[current].classList.remove('active');
+            current = (current + 1) % slides.length;
+            slides[current].classList.add('active');
+            load(current + 1);
+        }, 5000);
+    }
+</script>
+
+</body>
+</html>{{end}}

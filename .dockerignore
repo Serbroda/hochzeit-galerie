@@ -1,0 +1,12 @@
+# Den Build-Kontext klein und frei von lokalen Daten halten (.git bleibt: die Version kommt aus git describe)
+.idea
+.claude
+.DS_Store
+**/.DS_Store
+.env
+.env.*
+!.env.example
+data
+bin
+node_modules
+photo-names.tsv

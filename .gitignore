@@ -1,0 +1,22 @@
+# Build
+bin/
+*.test
+*.out
+
+# Lokale Daten und Einstellungen
+data/
+.env
+.env.local
+.env.*.local
+photo-names.tsv
+*.db
+
+# Node (nur für Tailwind)
+node_modules/
+
+# Editoren
+.idea/*
+!.idea/runConfigurations
+.vscode/*
+!.vscode/settings.json
+.DS_Store

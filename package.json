@@ -1,0 +1,12 @@
+{
+  "name": "hochzeit-galerie",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i ./ui/frontend/app.css -o ./ui/static/css/app.css",
+    "watch:css": "tailwindcss -i ./ui/frontend/app.css -o ./ui/static/css/app.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.2",
+    "tailwindcss": "^4.2.2"
+  }
+}
